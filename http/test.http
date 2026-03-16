@@ -1,0 +1,164 @@
+@baseUrl = http://localhost:8080
+@token = {{userLogin.response.body.$.data.token}}
+
+
+# ==============================================================
+# User Service - Auth
+# ==============================================================
+
+### Register
+# @name userRegistration
+POST {{baseUrl}}/api/users/register
+Content-Type: application/json
+
+{
+  "username": "alice",
+  "password": "pass123",
+  "email": "alice@example.com"
+}
+
+### Login
+# @name userLogin
+POST {{baseUrl}}/api/users/login
+Content-Type: application/json
+
+{
+  "username": "alice",
+  "password": "pass123"
+}
+
+# ==============================================================
+# User Service - CRUD
+# ==============================================================
+
+### Get User by ID
+GET {{baseUrl}}/api/users/1
+Authorization: Bearer {{token}}
+
+### Get User by Username
+GET {{baseUrl}}/api/users/username/alice
+Authorization: Bearer {{token}}
+
+### Get All Users
+GET {{baseUrl}}/api/users
+Authorization: Bearer {{token}}
+
+### Update User
+PUT {{baseUrl}}/api/users/1
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "email": "alice_new@example.com",
+  "phone": "13800138000"
+}
+
+### Delete User
+DELETE {{baseUrl}}/api/users/1
+Authorization: Bearer {{token}}
+
+
+# ==============================================================
+# Product Service
+# ==============================================================
+
+### Create Product
+# @name createProduct
+POST {{baseUrl}}/api/products
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "name": "Spring Boot in Action",
+  "description": "A practical guide to Spring Boot",
+  "price": 59.99,
+  "stock": 100,
+  "category": "Books"
+}
+
+### Get All Products
+GET {{baseUrl}}/api/products
+Authorization: Bearer {{token}}
+
+### Get Product by ID
+GET {{baseUrl}}/api/products/1
+Authorization: Bearer {{token}}
+
+### Search Products
+GET {{baseUrl}}/api/products/search?keyword=spring
+Authorization: Bearer {{token}}
+
+### Get Products by Category
+GET {{baseUrl}}/api/products/category/Books
+Authorization: Bearer {{token}}
+
+### Update Product
+PUT {{baseUrl}}/api/products/1
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "name": "Spring Boot in Action 2nd Ed",
+  "description": "Updated guide",
+  "price": 69.99,
+  "stock": 80,
+  "category": "Books"
+}
+
+### Deduct Stock
+PUT {{baseUrl}}/api/products/1/stock?quantity=5
+Authorization: Bearer {{token}}
+
+### Delete Product
+DELETE {{baseUrl}}/api/products/1
+Authorization: Bearer {{token}}
+
+
+# ==============================================================
+# Order Service
+# ==============================================================
+
+### Create Order
+# @name createOrder
+POST {{baseUrl}}/api/orders
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "userId": 1,
+  "items": [
+    {
+      "productId": 1,
+      "quantity": 2
+    },
+    {
+      "productId": 2,
+      "quantity": 1
+    }
+  ],
+  "remark": "Please package carefully"
+}
+
+### Get Order by ID
+GET {{baseUrl}}/api/orders/1
+Authorization: Bearer {{token}}
+
+### Get Orders by User ID
+GET {{baseUrl}}/api/orders/user/1
+Authorization: Bearer {{token}}
+
+### Get All Orders
+GET {{baseUrl}}/api/orders
+Authorization: Bearer {{token}}
+
+### Update Order Status to PAID
+PUT {{baseUrl}}/api/orders/1/status?status=PAID
+Authorization: Bearer {{token}}
+
+### Update Order Status to SHIPPED
+PUT {{baseUrl}}/api/orders/1/status?status=SHIPPED
+Authorization: Bearer {{token}}
+
+### Cancel Order
+PUT {{baseUrl}}/api/orders/1/cancel
+Authorization: Bearer {{token}}

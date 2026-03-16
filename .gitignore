@@ -1,0 +1,123 @@
+# ===========================
+# Gradle
+# ===========================
+.gradle/
+**/build/
+!src/**/build/
+gradle-app.setting
+!gradle/wrapper/gradle-wrapper.jar
+!gradle/wrapper/gradle-wrapper.properties
+
+# ===========================
+# Java
+# ===========================
+*.class
+*.jar
+*.war
+*.ear
+*.nar
+hs_err_pid*
+replay_pid*
+
+# ===========================
+# Spring Boot
+# ===========================
+**/target/
+**/out/
+
+# ===========================
+# IDE - IntelliJ IDEA
+# ===========================
+.idea/
+*.iws
+*.iml
+*.ipr
+
+# ===========================
+# IDE - VS Code
+# ===========================
+.vscode/settings.json
+.vscode/launch.json
+.vscode/tasks.json
+.vscode/extensions.json
+.vscode/*.code-snippets
+.classpath
+.project
+.settings/
+.factorypath
+.springBeans
+
+# ===========================
+# IDE - Eclipse
+# ===========================
+*.metadata
+bin/
+tmp/
+*.tmp
+*.bak
+*.swp
+*~.nib
+local.properties
+
+# ===========================
+# OS
+# ===========================
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+# Linux
+*~
+
+# ===========================
+# Logs
+# ===========================
+*.log
+logs/
+**/logs/
+spring.log
+
+# ===========================
+# Sensitive / Environment
+# ===========================
+.env
+.env.*
+!.env.example
+application-local.yml
+application-local.properties
+application-secret.yml
+application-secret.properties
+**/src/main/resources/application-prod.yml
+**/src/main/resources/application-prod.properties
+
+# ===========================
+# Test outputs
+# ===========================
+**/test-results/
+**/surefire-reports/
+**/jacoco.exec
+
+# ===========================
+# Docker
+# ===========================
+docker-compose.override.yml
+
+# ===========================
+# HTTP client
+# ===========================
+http/http-client.env.json
+http/http-client.private.env.json
+
+# ===========================
+# Native Image (GraalVM)
+# ===========================
+**/native/

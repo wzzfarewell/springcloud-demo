@@ -1,0 +1,10 @@
+rootProject.name = 'springcloud-demo'
+
+include(
+    'common',
+    'eureka-server',
+    'gateway-service',
+    'user-service',
+    'product-service',
+    'order-service'
+)
