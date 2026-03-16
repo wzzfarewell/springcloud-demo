@@ -8,28 +8,31 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.demo.common.exception.BusinessException;
-import com.demo.common.response.Result;
-
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import com.demo.common.constant.RabbitMQConstants;
 import com.demo.common.dto.OrderDTO;
 import com.demo.common.dto.OrderItemDTO;
 import com.demo.common.dto.ProductDTO;
 import com.demo.common.dto.UserDTO;
+import com.demo.common.exception.BusinessException;
+import com.demo.common.response.Result;
 import com.demo.order.dto.CreateOrderRequest;
 import com.demo.order.dto.OrderItemRequest;
 import com.demo.order.entity.Order;
 import com.demo.order.entity.OrderItem;
 import com.demo.order.feign.ProductFeignClient;
 import com.demo.order.feign.UserFeignClient;
+import com.demo.order.outbox.OutboxEvent;
+import com.demo.order.outbox.OutboxEventRepository;
 import com.demo.order.repository.OrderRepository;
 import com.demo.order.service.OrderService;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Service
@@ -39,7 +42,8 @@ public class OrderServiceImpl implements OrderService {
 	private final OrderRepository orderRepository;
 	private final UserFeignClient userFeignClient;
 	private final ProductFeignClient productFeignClient;
-	private final RabbitTemplate rabbitTemplate;
+	private final OutboxEventRepository outboxEventRepository;
+	private final ObjectMapper objectMapper;
 
 	@Override
 	@Transactional
@@ -97,16 +101,9 @@ public class OrderServiceImpl implements OrderService {
 
 		OrderDTO orderDTO = toDTO(saved);
 
-		// 5. 发布订单创建事件到 RabbitMQ
-		try {
-			rabbitTemplate.convertAndSend(
-					RabbitMQConstants.ORDER_EXCHANGE,
-					RabbitMQConstants.ORDER_CREATED_ROUTING_KEY,
-					orderDTO);
-			log.info("Published order.created event, orderNo={}", saved.getOrderNo());
-		} catch (Exception e) {
-			log.warn("Failed to publish order.created event: {}", e.getMessage());
-		}
+		// 5. 写入 Outbox 表（与订单在同一事务），由调度器异步发布到 RabbitMQ
+		saveOutboxEvent(RabbitMQConstants.ORDER_EXCHANGE, RabbitMQConstants.ORDER_CREATED_ROUTING_KEY, orderDTO);
+		log.info("Saved outbox event for order.created, orderNo={}", saved.getOrderNo());
 
 		return orderDTO;
 	}
@@ -140,17 +137,10 @@ public class OrderServiceImpl implements OrderService {
 		order.setStatus(status);
 		order = orderRepository.save(order);
 
-		// 订单支付完成时发布 order.paid 事件
+		// 订单支付完成时通过 Outbox 发布 order.paid 事件
 		if ("PAID".equals(status)) {
-			try {
-				rabbitTemplate.convertAndSend(
-						RabbitMQConstants.ORDER_EXCHANGE,
-						RabbitMQConstants.ORDER_PAID_ROUTING_KEY,
-						toDTO(order));
-				log.info("Published order.paid event, orderNo={}", order.getOrderNo());
-			} catch (Exception e) {
-				log.warn("Failed to publish order.paid event: {}", e.getMessage());
-			}
+			saveOutboxEvent(RabbitMQConstants.ORDER_EXCHANGE, RabbitMQConstants.ORDER_PAID_ROUTING_KEY, toDTO(order));
+			log.info("Saved outbox event for order.paid, orderNo={}", order.getOrderNo());
 		}
 		return toDTO(order);
 	}
@@ -165,6 +155,24 @@ public class OrderServiceImpl implements OrderService {
 		}
 		order.setStatus("CANCELLED");
 		orderRepository.save(order);
+	}
+
+	/**
+	 * 将消息写入 Outbox 表，与当前事务保持原子性。
+	 * 若序列化失败则抛出 RuntimeException 回滚整个事务。
+	 */
+	private void saveOutboxEvent(String exchange, String routingKey, Object payload) {
+		try {
+			String json = objectMapper.writeValueAsString(payload);
+			outboxEventRepository.save(OutboxEvent.builder()
+					.exchange(exchange)
+					.routingKey(routingKey)
+					.payloadType(payload.getClass().getName())
+					.payload(json)
+					.build());
+		} catch (JsonProcessingException e) {
+			throw new RuntimeException("Failed to serialize outbox event payload", e);
+		}
 	}
 
 	private String generateOrderNo() {

@@ -13,6 +13,7 @@ import com.demo.common.dto.ProductDTO;
 import com.demo.common.exception.BusinessException;
 import com.demo.product.dto.CreateProductRequest;
 import com.demo.product.entity.Product;
+import com.demo.product.lock.DistributedLock;
 import com.demo.product.repository.ProductRepository;
 import com.demo.product.service.ProductService;
 
@@ -94,6 +95,7 @@ public class ProductServiceImpl implements ProductService {
 
 	@Override
 	@Transactional
+	@DistributedLock(key = "'stock:' + #id", leaseTime = 5000, waitTime = 3000)
 	public void deductStock(Long id, Integer quantity) {
 		int updated = productRepository.deductStock(id, quantity);
 		if (updated == 0) {
