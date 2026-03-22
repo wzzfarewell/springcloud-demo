@@ -11,7 +11,8 @@ springcloud-demo/
 ├── gateway-service/   API 网关 + JWT 全局鉴权 (port: 8080)
 ├── user-service/      用户服务 (port: 8081)  - 注册/登录/JWT 颁发
 ├── product-service/   商品服务 (port: 8082)  - 商品 CRUD + Redis 缓存
-└── order-service/     订单服务 (port: 8083)  - 下单/OpenFeign/AMQP 消息
+├── order-service/     订单服务 (port: 8083)  - 下单/OpenFeign/AMQP 消息
+└── ai-service/        AI 服务  (port: 8084)  - Spring AI RAG 知识库问答
 ```
 
 ## 技术栈
@@ -31,6 +32,7 @@ springcloud-demo/
 | Redis | 7 | 缓存 |
 | RabbitMQ | 3.13 | 消息队列 (AMQP) |
 | JWT (jjwt) | 0.12.5 | 认证令牌 |
+| Spring AI | 1.0.0 | RAG 知识库问答 |
 
 ## 核心功能
 
@@ -41,6 +43,7 @@ springcloud-demo/
 - **RabbitMQ 消息**：注册成功发 `user.created` 事件；下单成功发 `order.created` 事件；支付后发 `order.paid` 事件
 - **Flyway 迁移**：SQL 版本化管理，应用启动时自动执行
 - **Java 21 虚拟线程**：所有 Web 服务均开启 `spring.threads.virtual.enabled=true`
+- **Spring AI RAG**：`ai-service` 集成 Spring AI 1.0.0，使用内存向量库（SimpleVectorStore）实现检索增强生成：文档入库 → 切分 → 向量化 → 相似度检索 → LLM 组装答案
 
 ## 快速启动
 
@@ -83,6 +86,15 @@ gradle :gateway-service:bootRun
 gradle :user-service:bootRun
 gradle :product-service:bootRun
 gradle :order-service:bootRun
+
+# 4. AI 服务（需配置 OpenAI API Key）
+export OPENAI_API_KEY=sk-your-key     # Linux/macOS
+# $env:OPENAI_API_KEY="sk-your-key"  # Windows PowerShell
+gradle :ai-service:bootRun
+
+# 也可使用 Ollama 本地模型（免费，无需 API Key）
+# 先执行：ollama pull qwen2.5:7b && ollama pull nomic-embed-text
+gradle :ai-service:bootRun --args='--spring.profiles.active=ollama'
 ```
 
 ## API 示例
@@ -149,6 +161,65 @@ PUT http://localhost:8080/api/orders/1/status?status=PAID
 Authorization: Bearer eyJ...
 ```
 
+## Spring AI RAG 演示
+
+`ai-service` 实现了一个完整的 RAG（Retrieval-Augmented Generation，检索增强生成）流程：
+
+```
+文档入库流程:  原始文本 → TokenTextSplitter 切分 → EmbeddingModel 向量化 → SimpleVectorStore 存储
+问答流程:      用户提问 → 向量化 → 相似度检索（Top-K）→ 组装 Prompt → ChatModel 生成答案
+```
+
+### 文档入库
+
+```http
+POST http://localhost:8080/api/ai/rag/ingest
+Content-Type: application/json
+
+{
+  "content": "你的文档内容...",
+  "source": "文档来源标识"
+}
+```
+
+### RAG 问答（基于知识库）
+
+```http
+POST http://localhost:8080/api/ai/rag/chat
+Content-Type: application/json
+
+{
+  "question": "各个服务分别运行在哪个端口？"
+}
+```
+
+响应示例：
+```json
+{
+  "code": 200,
+  "data": {
+    "answer": "根据知识库信息：eureka-server 运行在 8761 端口，gateway-service 在 8080 端口...",
+    "sources": [
+      { "source": "knowledge-base.md", "snippet": "服务列表与端口..." }
+    ]
+  }
+}
+```
+
+### 普通问答（无 RAG，用于效果对比）
+
+```http
+POST http://localhost:8080/api/ai/chat
+Content-Type: application/json
+
+{
+  "question": "这个项目用了哪些技术？"
+}
+```
+
+> **效果对比**：同一问题分别调用 `/api/ai/rag/chat` 和 `/api/ai/chat`，
+> 前者会结合项目知识库给出精准答案，后者则由 LLM 凭通用知识自由发挥。
+
 ## 监控入口
 
 | 服务 | Actuator |
@@ -158,6 +229,7 @@ Authorization: Bearer eyJ...
 | User Service | http://localhost:8081/actuator/health |
 | Product Service | http://localhost:8082/actuator/health |
 | Order Service | http://localhost:8083/actuator/health |
+| AI Service | http://localhost:8084/actuator/health |
 | RabbitMQ Management | http://localhost:15672 (guest/guest) |
 
 ## 项目结构说明
@@ -197,4 +269,17 @@ order-service/src/main/java/com/demo/order/
 ├── mq/          OrderMessageConsumer（AMQP 消费者）
 ├── repository/  OrderRepository
 └── service/     OrderService（接口）、impl/OrderServiceImpl
+
+ai-service/src/main/java/com/demo/ai/
+├── config/      AiConfig（VectorStore & TokenTextSplitter Bean）
+├── controller/  RagController（/api/ai/** 接口）
+├── dto/         ChatRequest、ChatResponse、IngestRequest
+├── exception/   GlobalExceptionHandler
+├── service/     RagService（RAG 核心逻辑）
+└── startup/     KnowledgeBaseLoader（启动时预加载示例文档）
+
+ai-service/src/main/resources/
+├── application.yml          端口/Eureka/OpenAI 配置（含 Ollama profile）
+└── docs/
+    └── knowledge-base.md    预置示例知识库（项目文档）
 ```

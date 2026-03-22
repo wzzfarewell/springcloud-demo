@@ -1,0 +1,82 @@
+server:
+  port: 8084
+
+spring:
+  application:
+    name: ai-service
+  threads:
+    virtual:
+      enabled: true   # Java 21 虚拟线程
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY:cb4b55756ae84cca8a4eb5a93027af6e.eqy8kSiBoXCzYa31}
+      chat:
+        base-url: https://open.bigmodel.cn
+        # 覆盖默认的 /v1/chat/completions，精确指定完整路径
+        completions-path: /api/paas/v4/chat/completions
+        options:
+          model: glm-4-flash
+          temperature: 0.3
+          max-tokens: 2048
+      embedding:
+        base-url: https://open.bigmodel.cn
+        # 覆盖默认的 /v1/embeddings，精确指定完整路径
+        embeddings-path: /api/paas/v4/embeddings
+        options:
+          model: embedding-3
+
+# RAG 管道参数（对应 RagProperties）
+app:
+  rag:
+    top-k: 4           # 每次检索返回的最相关文档片段数
+    chunk-size: 800    # 文本切分 chunk 大小（tokens）
+    chunk-overlap: 200 # 相邻 chunk 重叠窗口（tokens），保留上下文连贯性
+
+# Eureka 服务注册
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${server.port}
+
+# 监控端点
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+
+---
+# ===== Ollama 本地模型配置（可选，切换至此 profile 可免费本地运行）=====
+# 启动时指定: --spring.profiles.active=ollama
+spring:
+  config:
+    activate:
+      on-profile: ollama
+  ai:
+    openai:
+      # Ollama 提供 OpenAI 兼容接口
+      api-key: ollama
+      base-url: http://localhost:11434/v1
+      chat:
+        options:
+          model: qwen2.5:7b      # 本地已拉取的模型名称，中文支持较好
+          temperature: 0.3
+      embedding:
+        options:
+          model: nomic-embed-text  # ollama pull nomic-embed-text
+  client:
+    service-url:
+      defaultZone: http://localhost:8761/eureka/
+  instance:
+    prefer-ip-address: true
+    instance-id: ${spring.application.name}:${server.port}
+
+# 监控端点
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics

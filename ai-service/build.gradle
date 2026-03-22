@@ -1,0 +1,26 @@
+plugins {
+    id 'org.springframework.boot'
+}
+
+repositories {
+    // Spring 官方仓库优先，Spring AI 仅在 milestone/snapshot
+    maven { url 'https://repo.spring.io/milestone/' }
+    maven { url 'https://repo.spring.io/snapshot/' }
+    mavenCentral()
+    // 如需国内加速可取消注释
+    // maven { url 'https://maven.aliyun.com/repository/public/' }
+}
+
+dependencies {
+    implementation project(':common')
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
+
+    // Spring AI - OpenAI（提供 ChatModel + EmbeddingModel；可替换为 Ollama）
+    implementation "org.springframework.ai:spring-ai-openai-spring-boot-starter:${springAiVersion}"
+
+    // 文档读取：Tika（支持 txt / md 等格式）
+    implementation "org.springframework.ai:spring-ai-tika-document-reader:${springAiVersion}"
+}

@@ -159,6 +159,90 @@ Authorization: Bearer {{token}}
 PUT {{baseUrl}}/api/orders/1/status?status=SHIPPED
 Authorization: Bearer {{token}}
 
+
+# ==============================================================
+# AI Service - RAG（检索增强生成）演示
+# 说明：
+#   1. POST /api/ai/rag/ingest  → 文档入库（切分 + 向量化 + 存储）
+#   2. POST /api/ai/rag/chat    → RAG 问答（先检索知识库，再由 LLM 生成答案）
+#   3. POST /api/ai/chat        → 普通问答（无上下文，直接与 LLM 对话，用于对比）
+#   4. GET  /api/ai/rag/stats   → 查询已索引文档片段数量
+#
+# 前提：ai-service 已正确配置 OPENAI_API_KEY 并启动（端口 8084）
+# ==============================================================
+
+### [AI] 1. 向量库统计（查看当前已索引 chunk 数量）
+GET {{baseUrl}}/api/ai/rag/stats
+Authorization: Bearer {{token}}
+
+###
+
+### [AI] 2. 文档入库（自定义文档）
+POST {{baseUrl}}/api/ai/rag/ingest
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "content": "SpringCloud Demo 项目是一个微服务示例，使用 Eureka 做服务注册发现，Gateway 做 API 网关和 JWT 鉴权，OpenFeign 做服务间调用，Redis 做缓存，RabbitMQ 做消息队列，Spring AI 做 RAG 知识库问答。",
+  "source": "manual-input-1"
+}
+
+###
+
+### [AI] 3. RAG 问答（基于知识库回答，返回引用来源）
+POST {{baseUrl}}/api/ai/rag/chat
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "question": "这个项目用了哪些技术栈？"
+}
+
+###
+
+### [AI] 4. RAG 问答 - 询问服务端口
+POST {{baseUrl}}/api/ai/rag/chat
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "question": "各个服务分别运行在哪个端口？"
+}
+
+###
+
+### [AI] 5. RAG 问答 - 询问启动步骤
+POST {{baseUrl}}/api/ai/rag/chat
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "question": "如何快速启动这个项目？"
+}
+
+###
+
+### [AI] 6. 普通问答（无 RAG，直接询问 LLM，用于效果对比）
+POST {{baseUrl}}/api/ai/chat
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "question": "这个项目用了哪些技术栈？"
+}
+
+###
+
+### [AI] 7. RAG 问答 - 询问 RAG 相关问题（验证知识库是否正确）
+POST {{baseUrl}}/api/ai/rag/chat
+Content-Type: application/json
+Authorization: Bearer {{token}}
+
+{
+  "question": "AI 服务返回报错时应该如何处理？"
+}
+
+
 ### Cancel Order
 PUT {{baseUrl}}/api/orders/1/cancel
 Authorization: Bearer {{token}}
